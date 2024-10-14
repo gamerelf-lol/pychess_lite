@@ -11,7 +11,7 @@ game.board # A 1-D array whose elements correspond to the squares on the 8x8 che
 game.legal_moves() # Returns a list of legal moves.
 
 move = 'e2e4'
-game.move(move) # Changes the state of the board if given a legal move.
+game.move(move) # Changes the state of the board given a legal move.
 
 game.white_to_move() # Returns True if the player to move is white.
 
