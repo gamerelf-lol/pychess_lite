@@ -52,4 +52,4 @@ TODO:
 5. Rewrite the return value of castling_rights to be a tuple.
 6. Massive performance overhaul and refactoring in the near distant future.
 
-This project is licensed under the [DWTFYWWIPL](https://dwtfywwi.org/license/Do_whatever_the_fuck_you_want_with_it) Public License.
+This project is licensed under the [DWTFYWWI](https://dwtfywwi.org/license/Do_whatever_the_fuck_you_want_with_it) Public License.
