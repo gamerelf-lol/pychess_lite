@@ -193,12 +193,10 @@ class Engine:
             temp_board = self.board.copy()
             temp_hash = self.position_hash
             self.move(move, test=True, temp_board=temp_board)
-            # Temporarily assign temp_board to self.board
             original_board = self.board
             self.board = temp_board
             if not self.check():
                 safe_moves.append(move)
-            # Restore self.board
             self.board = original_board
             self.position_hash = temp_hash
         return safe_moves
@@ -208,11 +206,9 @@ class Engine:
         try:
             king_pos = self.board.index(king_char)
         except ValueError:
-            # King is not on the board; this is checkmate
             return True
         opponent_moves = self.dangerous_squares()
         return king_pos in opponent_moves
-
 
     def castling_rights(self):
         rights = {'king_side': False, 'queen_side': False}
@@ -220,40 +216,31 @@ class Engine:
         try:
             king_pos = self.board.index(king_char)
         except ValueError:
-            # King is not on the board; cannot castle
             return rights
-
         opponent_moves = self.dangerous_squares()
         if self.board[64] == 'w':
-            # White's turn
             if self.board[65]:
-                # White can castle king-side
                 if self.board[63] == 'R':
                     if self.board[61] == ' ' and self.board[62] == ' ':
                         if king_pos not in opponent_moves and (king_pos + 1) not in opponent_moves and (king_pos + 2) not in opponent_moves:
                             rights['king_side'] = True
             if self.board[66]:
-                # White can castle queen-side
                 if self.board[56] == 'R':
                     if self.board[57] == ' ' and self.board[58] == ' ' and self.board[59] == ' ':
                         if king_pos not in opponent_moves and (king_pos - 1) not in opponent_moves and (king_pos - 2) not in opponent_moves:
                             rights['queen_side'] = True
         else:
-            # Black's turn
             if self.board[67]:
-                # Black can castle king-side
                 if self.board[7] == 'r':
                     if self.board[5] == ' ' and self.board[6] == ' ':
                         if king_pos not in opponent_moves and (king_pos + 1) not in opponent_moves and (king_pos + 2) not in opponent_moves:
                             rights['king_side'] = True
             if self.board[68]:
-                # Black can castle queen-side
                 if self.board[0] == 'r':
                     if self.board[1] == ' ' and self.board[2] == ' ' and self.board[3] == ' ':
                         if king_pos not in opponent_moves and (king_pos - 1) not in opponent_moves and (king_pos - 2) not in opponent_moves:
                             rights['queen_side'] = True
         return rights
-
 
     def move(self, move, test=False, temp_board=None):
         board = temp_board if temp_board is not None else self.board
@@ -483,7 +470,7 @@ class Engine:
                 if white_square_color == black_square_color:
                     return True
         return False
-    
+
     def fifty_move_rule(self):
         return self.board[70] >= 100
 
