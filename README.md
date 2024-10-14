@@ -1,2 +1,4 @@
-# pychess_lite
-This project is licensed under the Do Whatever the Fuck You Want With It License.
+PyChess Lite
+
+I needed a portable chess engine so I wrote this in under two hours.
+
