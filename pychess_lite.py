@@ -98,7 +98,7 @@ class Engine:
             i for i, piece in enumerate(self.board[:64])
             if (turn == 'w' and piece.isupper()) or (turn == 'b' and piece.islower())
         ]
-        opponent_moves = self.dangerous_squares(self.board)
+        opponent_moves = self.dangerous_squares()
         en_passant_target = self.board[69]
         for start in starting_coordinates:
             piece = self.board[start]
@@ -183,7 +183,7 @@ class Engine:
                             (target_piece.islower() if piece.isupper() else target_piece.isupper())):
                             if target not in opponent_moves:
                                 legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(target)}')
-                rights = self.castling_rights(self.board, start, opponent_moves)
+                rights = self.castling_rights()
                 if rights['king_side']:
                     legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(start + 2)}')
                 if rights['queen_side']:
@@ -193,41 +193,67 @@ class Engine:
             temp_board = self.board.copy()
             temp_hash = self.position_hash
             self.move(move, test=True, temp_board=temp_board)
-            if not self.check(temp_board, turn):
+            # Temporarily assign temp_board to self.board
+            original_board = self.board
+            self.board = temp_board
+            if not self.check():
                 safe_moves.append(move)
+            # Restore self.board
+            self.board = original_board
             self.position_hash = temp_hash
         return safe_moves
 
-    def check(self, board, turn):
-        king_pos = board.index('K' if turn == 'w' else 'k')
-        opponent_moves = self.dangerous_squares(board)
+    def check(self):
+        king_char = 'K' if self.white_to_move() else 'k'
+        try:
+            king_pos = self.board.index(king_char)
+        except ValueError:
+            # King is not on the board; this is checkmate
+            return True
+        opponent_moves = self.dangerous_squares()
         return king_pos in opponent_moves
 
-    def castling_rights(self, board, king_pos, opponent_moves):
+
+    def castling_rights(self):
         rights = {'king_side': False, 'queen_side': False}
-        if board[64] == 'w':
-            if board[65]:
-                if board[63] == 'R':
-                    if board[61] == ' ' and board[62] == ' ':
+        king_char = 'K' if self.white_to_move() else 'k'
+        try:
+            king_pos = self.board.index(king_char)
+        except ValueError:
+            # King is not on the board; cannot castle
+            return rights
+
+        opponent_moves = self.dangerous_squares()
+        if self.board[64] == 'w':
+            # White's turn
+            if self.board[65]:
+                # White can castle king-side
+                if self.board[63] == 'R':
+                    if self.board[61] == ' ' and self.board[62] == ' ':
                         if king_pos not in opponent_moves and (king_pos + 1) not in opponent_moves and (king_pos + 2) not in opponent_moves:
                             rights['king_side'] = True
-            if board[66]:
-                if board[56] == 'R':
-                    if board[57] == ' ' and board[58] == ' ' and board[59] == ' ':
+            if self.board[66]:
+                # White can castle queen-side
+                if self.board[56] == 'R':
+                    if self.board[57] == ' ' and self.board[58] == ' ' and self.board[59] == ' ':
                         if king_pos not in opponent_moves and (king_pos - 1) not in opponent_moves and (king_pos - 2) not in opponent_moves:
                             rights['queen_side'] = True
         else:
-            if board[67]:
-                if board[7] == 'r':
-                    if board[5] == ' ' and board[6] == ' ':
+            # Black's turn
+            if self.board[67]:
+                # Black can castle king-side
+                if self.board[7] == 'r':
+                    if self.board[5] == ' ' and self.board[6] == ' ':
                         if king_pos not in opponent_moves and (king_pos + 1) not in opponent_moves and (king_pos + 2) not in opponent_moves:
                             rights['king_side'] = True
-            if board[68]:
-                if board[0] == 'r':
-                    if board[1] == ' ' and board[2] == ' ' and board[3] == ' ':
+            if self.board[68]:
+                # Black can castle queen-side
+                if self.board[0] == 'r':
+                    if self.board[1] == ' ' and self.board[2] == ' ' and self.board[3] == ' ':
                         if king_pos not in opponent_moves and (king_pos - 1) not in opponent_moves and (king_pos - 2) not in opponent_moves:
                             rights['queen_side'] = True
         return rights
+
 
     def move(self, move, test=False, temp_board=None):
         board = temp_board if temp_board is not None else self.board
@@ -378,15 +404,15 @@ class Engine:
         rank = 8 - index // 8
         return f'{chr(file + ord("a"))}{rank}'
 
-    def dangerous_squares(self, board):
+    def dangerous_squares(self):
         opponent_moves = set()
         opponent_turn = 'b' if self.white_to_move() else 'w'
         starting_coordinates = [
-            i for i, piece in enumerate(board[:64])
+            i for i, piece in enumerate(self.board[:64])
             if (opponent_turn == 'w' and piece.isupper()) or (opponent_turn == 'b' and piece.islower())
         ]
         for start in starting_coordinates:
-            piece = board[start]
+            piece = self.board[start]
             if piece.upper() == 'P':
                 direction = -1 if piece.isupper() else 1
                 for dx in [-1, 1]:
@@ -420,7 +446,7 @@ class Engine:
                     while 0 <= nx < 8 and 0 <= ny < 8:
                         target = ny * 8 + nx
                         opponent_moves.add(target)
-                        if board[target] != ' ':
+                        if self.board[target] != ' ':
                             break
                         nx += dx
                         ny += dy
@@ -463,13 +489,13 @@ class Engine:
 
     def stalemate(self):
         if not self.legal_moves():
-            return not self.check(self.board, self.board[64])
+            return not self.check()
         return False
 
     def three_fold_repetition(self):
         return self.position_hash_counts.get(self.position_hash, 0) >= 3
 
     def checkmate(self):
-        if self.check(self.board, self.board[64]):
+        if self.check():
             return not self.legal_moves()
         return False
