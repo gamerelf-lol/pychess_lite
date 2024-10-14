@@ -46,10 +46,10 @@ if __name__ == "__main__":
 
 TODO:
 
-1. Support compability with chess algebraic notation.
-2. Rewrite dangerous_squares to align their output with other instance methods.
-3. Define constants to get out of magic number hell.
-4. Rewrite the return value of castling_rights to be a tuple.
-5. Massive performance overhaul and refactoring in the near distant future.
+1. Compability with chess algebraic notation and PGN import and exports.
+3. Rewrite dangerous_squares to align their output with other instance methods.
+4. Define constants to get out of magic number hell.
+5. Rewrite the return value of castling_rights to be a tuple.
+6. Massive performance overhaul and refactoring in the near distant future.
 
 This project is licensed under the [DWETFYWWI](https://opensource.org/license/Do_whatever_the_fuck_you_want_with_it) License.
