@@ -9,7 +9,7 @@ from pychess_lite import Engine
 
 game = Engine.new() # Creates a new game.
 
-game.board # A 1-D array whose elements correspond to the squares on the 8x8 chess board ordered from top-to-bottom, left-to-right.
+game.board # A list whose elements correspond to the squares on the 8x8 chess board ordered from top-to-bottom, left-to-right.
 game.legal_moves() # Returns a list of legal moves.
 
 move = 'e2e4'
