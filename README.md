@@ -1,5 +1,7 @@
 # PyChess Lite
 
+A super lightweight module designed to create, alter, and verify chess board states.
+
 ### Examples
 
 ```py
@@ -29,7 +31,25 @@ game.three_fold_repetition() # Returns True if the same board position has was r
 
 game.stalemate() # Returns True if the player to move has no legal moves but is not in check.
 
-game.checkmate() # Returns True if the player to mvoe has no legal moves and is in check.
+game.checkmate() # Returns True if the player to move has no legal moves and is in check.
+
+def scholars_mate():
+    game = Engine.new()
+    moves = ['e2e4', 'e7e5', 'f1c4', 'b8c6', 'd1h5', 'g8f6', 'h5f7']
+    for move in moves:
+        game.move(move)
+    return game.checkmate()
+
+if __name__ == "__main__":
+    print(scholars_mate()) # True
 ```
+
+TODO:
+
+1. Support compability with chess algebraic notation.
+2. Rewrite dangerous_squares to align their output with other instance methods.
+3. Define constants to get out of magic number hell.
+4. Rewrite the return value of castling_rights to be a tuple.
+5. Massive performance overhaul and refactoring in the near distant future.
 
 This project is licensed under the [DWETFYWWI](https://opensource.org/license/Do_whatever_the_fuck_you_want_with_it) License.
