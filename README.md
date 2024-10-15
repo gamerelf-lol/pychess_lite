@@ -38,10 +38,10 @@ def scholars_mate():
     moves = ['e2e4', 'e7e5', 'f1c4', 'b8c6', 'd1h5', 'g8f6', 'h5f7']
     for move in moves:
         game.move(move)
-    return game.checkmate()
+    return game
 
 if __name__ == "__main__":
-    print(scholars_mate()) # True
+    print(scholars_mate().checkmate()) # True
 ```
 
 TODO:
