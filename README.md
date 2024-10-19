@@ -16,8 +16,6 @@ move = 'e2e4'
 game.move(move) # Changes the state of the board given a legal move.
 
 game.player_to_move() # Returns 'w' or 'b' depending on the player to move.
-game.white_to_move() # Returns True if the player to move is white.
-game.black_to_move() # Returns True if the player to move is black.
 
 game.en_passant() # Returns the available en passant square if it exists, otherwise returns None.
 
