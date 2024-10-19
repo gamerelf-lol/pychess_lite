@@ -5,7 +5,6 @@ A super lightweight module designed to create, alter, and verify chess board sta
 ### Examples
 
 ```py
-#main.py
 from pychess_lite import Board
 
 game = Board.new() # Creates a new game.
