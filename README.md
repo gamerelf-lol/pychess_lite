@@ -5,6 +5,7 @@ A super lightweight module designed to create, alter, and verify chess board sta
 ### Examples
 
 ```py
+#main.py
 from pychess_lite import Board
 
 game = Board.new() # Creates a new game.
@@ -19,11 +20,13 @@ game.player_to_move() # Returns 'w' or 'b' depending on the player to move.
 game.white_to_move() # Returns True if the player to move is white.
 game.black_to_move() # Returns True if the player to move is black.
 
+game.en_passant() # Returns the available en passant square if it exists, otherwise returns None.
+
 game.check() # Returns True if the player to move is in check.
 
 game.castling_rights() # Returns a dictionary containing boolean "king_side" and "queen_side" key value pairs, given the player to move's castling privileges.
 
-game.dangerous_squares() # Returns a set of integers representing the board indices that the player to move's opponent could potentially attack or occupy on their next move.
+game.dangerous_squares() # Returns a set of squares that the player to move's opponent could potentially attack or occupy on their next move.
 
 game.insufficient_material() # Returns True if both White and Black do not have sufficient material to force a checkmate.
 
@@ -42,15 +45,21 @@ def scholars_mate():
         game.move(move)
     return game.checkmate()
 
+def en_passant():
+    game = Board.new()
+    moves = ['e2e4', 'a7a5', 'e4e5', 'd7d5']
+    for move in moves:
+        game.move(move)
+    return game.en_passant()
+
 if __name__ == "__main__":
     print(scholars_mate()) # True
+    print(en_passant()) # 'd6'
 ```
 
 TODO:
 
 1. Compability with chess algebraic notation and PGN import and exports.
-2. Rewrite dangerous_squares to align their output with other instance methods.
-3. Rewrite the return value of castling_rights to be a tuple.
-4. Massive performance overhaul and refactoring in the near distant future.
+2. Massive performance overhaul and refactoring in the near distant future.
 
 This project is licensed under the [DWTFYPWI](https://dwtfypwi.org/license/Do_whatever_the_fuck_you_please_with_it) Public License.
