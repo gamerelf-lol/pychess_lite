@@ -1,7 +1,16 @@
 import random
 import json
 
-class Engine:
+# Constants for board indices
+PLAYER_TO_MOVE = 64
+CASTLING_RIGHTS_KINGSIDE_WHITE = 65
+CASTLING_RIGHTS_QUEENSIDE_WHITE = 66
+CASTLING_RIGHTS_KINGSIDE_BLACK = 67
+CASTLING_RIGHTS_QUEENSIDE_BLACK = 68
+EN_PASSANT = 69
+HALF_MOVE_CLOCK = 70
+
+class Board:
     def __init__(self):
         self._initialize_zobrist()
         self.position_hash_counts = {}
@@ -71,51 +80,62 @@ class Engine:
             piece = self.board[index]
             if piece != ' ':
                 h ^= self.zobrist_piece[piece][index]
-        if self.board[64] == 'w':
+        if self.board[PLAYER_TO_MOVE] == 'w':
             h ^= self.zobrist_side
-        if self.board[65]:
+        if self.board[CASTLING_RIGHTS_KINGSIDE_WHITE]:
             h ^= self.zobrist_castling['K']
-        if self.board[66]:
+        if self.board[CASTLING_RIGHTS_QUEENSIDE_WHITE]:
             h ^= self.zobrist_castling['Q']
-        if self.board[67]:
+        if self.board[CASTLING_RIGHTS_KINGSIDE_BLACK]:
             h ^= self.zobrist_castling['k']
-        if self.board[68]:
+        if self.board[CASTLING_RIGHTS_QUEENSIDE_BLACK]:
             h ^= self.zobrist_castling['q']
-        if self.board[69] != -1:
-            file = self.board[69] % 8
+        if self.board[EN_PASSANT] != -1:
+            file = self.board[EN_PASSANT] % 8
             h ^= self.zobrist_en_passant[file]
         return h
-
+    
+    def player_to_move(self):
+        return self.board[PLAYER_TO_MOVE]
+    
     def white_to_move(self):
-        return self.board[64] == 'w'
+        return self.player_to_move() == 'w'
+    
+    def black_to_move(self):
+        return self.player_to_move() == 'b'
 
     def legal_moves(self):
         if self.board is None:
             raise ValueError("Engine not initialized. Call new() or load() before using this method.")
-        turn = self.board[64]
+        turn = self.player_to_move()
         legal_moves = []
         starting_coordinates = [
             i for i, piece in enumerate(self.board[:64])
             if (turn == 'w' and piece.isupper()) or (turn == 'b' and piece.islower())
         ]
         opponent_moves = self.dangerous_squares()
-        en_passant_target = self.board[69]
+        en_passant_target = self.board[EN_PASSANT]
         for start in starting_coordinates:
             piece = self.board[start]
             if piece.upper() == 'P':
                 direction = -1 if piece.isupper() else 1
                 forward_one = start + (direction * 8)
                 if 0 <= forward_one < 64 and self.board[forward_one] == ' ':
+                    # Promotion
                     if (piece.isupper() and forward_one < 8) or (piece.islower() and forward_one >= 56):
                         for promo_piece in ['Q', 'R', 'B', 'N']:
-                            legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(forward_one)}{promo_piece.lower()}')
+                            promo = promo_piece.lower() if piece.islower() else promo_piece
+                            legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(forward_one)}{promo}')
                     else:
                         legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(forward_one)}')
 
-                    if (piece.isupper() and start // 8 == 6) or (piece.islower() and start // 8 == 1):
+                    # Double move
+                    starting_rank = 6 if piece.isupper() else 1
+                    if (start // 8 == starting_rank):
                         forward_two = start + (direction * 16)
                         if self.board[forward_two] == ' ' and self.board[forward_one] == ' ':
                             legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(forward_two)}')
+                # Captures
                 for dx in [-1, 1]:
                     x = (start % 8) + dx
                     y = (start // 8) + direction
@@ -123,9 +143,11 @@ class Engine:
                         target = y * 8 + x
                         target_piece = self.board[target]
                         if target_piece != ' ' and (target_piece.islower() if piece.isupper() else target_piece.isupper()):
+                            # Promotion capture
                             if (piece.isupper() and target < 8) or (piece.islower() and target >= 56):
                                 for promo_piece in ['Q', 'R', 'B', 'N']:
-                                    legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(target)}{promo_piece.lower()}')
+                                    promo = promo_piece.lower() if piece.islower() else promo_piece
+                                    legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(target)}{promo}')
                             else:
                                 legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(target)}')
                         elif target == en_passant_target:
@@ -184,10 +206,12 @@ class Engine:
                             if target not in opponent_moves:
                                 legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(target)}')
                 rights = self.castling_rights()
+                king_side_square = start + 2
+                queen_side_square = start - 2
                 if rights['king_side']:
-                    legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(start + 2)}')
+                    legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(king_side_square)}')
                 if rights['queen_side']:
-                    legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(start - 2)}')
+                    legal_moves.append(f'{self.index_to_square(start)}{self.index_to_square(queen_side_square)}')
         safe_moves = []
         for move in legal_moves:
             temp_board = self.board.copy()
@@ -218,24 +242,24 @@ class Engine:
         except ValueError:
             return rights
         opponent_moves = self.dangerous_squares()
-        if self.board[64] == 'w':
-            if self.board[65]:
+        if self.player_to_move() == 'w':
+            if self.board[CASTLING_RIGHTS_KINGSIDE_WHITE]:
                 if self.board[63] == 'R':
                     if self.board[61] == ' ' and self.board[62] == ' ':
                         if king_pos not in opponent_moves and (king_pos + 1) not in opponent_moves and (king_pos + 2) not in opponent_moves:
                             rights['king_side'] = True
-            if self.board[66]:
+            if self.board[CASTLING_RIGHTS_QUEENSIDE_WHITE]:
                 if self.board[56] == 'R':
                     if self.board[57] == ' ' and self.board[58] == ' ' and self.board[59] == ' ':
                         if king_pos not in opponent_moves and (king_pos - 1) not in opponent_moves and (king_pos - 2) not in opponent_moves:
                             rights['queen_side'] = True
         else:
-            if self.board[67]:
+            if self.board[CASTLING_RIGHTS_KINGSIDE_BLACK]:
                 if self.board[7] == 'r':
                     if self.board[5] == ' ' and self.board[6] == ' ':
                         if king_pos not in opponent_moves and (king_pos + 1) not in opponent_moves and (king_pos + 2) not in opponent_moves:
                             rights['king_side'] = True
-            if self.board[68]:
+            if self.board[CASTLING_RIGHTS_QUEENSIDE_BLACK]:
                 if self.board[0] == 'r':
                     if self.board[1] == ' ' and self.board[2] == ' ' and self.board[3] == ' ':
                         if king_pos not in opponent_moves and (king_pos - 1) not in opponent_moves and (king_pos - 2) not in opponent_moves:
@@ -253,6 +277,7 @@ class Engine:
         if not test and move not in self.legal_moves():
             raise ValueError(f"Illegal move: {move}")
         if moving_piece.upper() == 'K' and abs(start_index - end_index) == 2:
+            # Castling
             if end_index > start_index:
                 rook_start = start_index + 3
                 rook_end = start_index + 1
@@ -265,33 +290,34 @@ class Engine:
             board[rook_start] = ' '
             board[rook_end] = rook_piece
             if moving_piece.isupper():
-                board[65] = False  
-                board[66] = False  
+                board[CASTLING_RIGHTS_KINGSIDE_WHITE] = False  
+                board[CASTLING_RIGHTS_QUEENSIDE_WHITE] = False  
             else:
-                board[67] = False  
-                board[68] = False  
+                board[CASTLING_RIGHTS_KINGSIDE_BLACK] = False  
+                board[CASTLING_RIGHTS_QUEENSIDE_BLACK] = False  
             if not test:
                 self.position_hash ^= self.zobrist_piece[moving_piece][start_index]
                 self.position_hash ^= self.zobrist_piece[rook_piece][rook_start]
                 self.position_hash ^= self.zobrist_piece[moving_piece][end_index]
                 self.position_hash ^= self.zobrist_piece[rook_piece][rook_end]
                 if moving_piece.isupper():
-                    if board[65]:
+                    if board[CASTLING_RIGHTS_KINGSIDE_WHITE]:
                         self.position_hash ^= self.zobrist_castling['K']
-                        board[65] = False
-                    if board[66]:
+                        board[CASTLING_RIGHTS_KINGSIDE_WHITE] = False
+                    if board[CASTLING_RIGHTS_QUEENSIDE_WHITE]:
                         self.position_hash ^= self.zobrist_castling['Q']
-                        board[66] = False
+                        board[CASTLING_RIGHTS_QUEENSIDE_WHITE] = False
                 else:
-                    if board[67]:
+                    if board[CASTLING_RIGHTS_KINGSIDE_BLACK]:
                         self.position_hash ^= self.zobrist_castling['k']
-                        board[67] = False
-                    if board[68]:
+                        board[CASTLING_RIGHTS_KINGSIDE_BLACK] = False
+                    if board[CASTLING_RIGHTS_QUEENSIDE_BLACK]:
                         self.position_hash ^= self.zobrist_castling['q']
-                        board[68] = False
+                        board[CASTLING_RIGHTS_QUEENSIDE_BLACK] = False
         else:
-            en_passant_target = board[69]
+            en_passant_target = board[EN_PASSANT]
             if moving_piece.upper() == 'P' and end_index == en_passant_target:
+                # En passant capture
                 if moving_piece.isupper():
                     capture_index = end_index + 8
                 else:
@@ -302,81 +328,79 @@ class Engine:
                     self.position_hash ^= self.zobrist_piece[captured_pawn][capture_index]
             board[start_index] = ' '
             if promotion_piece:
-                if moving_piece.isupper():
-                    promoted_piece = promotion_piece.upper()
-                else:
-                    promoted_piece = promotion_piece.lower()
+                promoted_piece = promotion_piece.upper() if moving_piece.isupper() else promotion_piece.lower()
                 board[end_index] = promoted_piece
             else:
                 board[end_index] = moving_piece
+            # Update castling rights if a rook is moved or captured
             if moving_piece.upper() == 'R':
                 if moving_piece.isupper():
                     if start_index == 56:
-                        if board[66]:
+                        if board[CASTLING_RIGHTS_QUEENSIDE_WHITE]:
                             if not test:
                                 self.position_hash ^= self.zobrist_castling['Q']
-                            board[66] = False
+                            board[CASTLING_RIGHTS_QUEENSIDE_WHITE] = False
                     elif start_index == 63:
-
-                        if board[65]:
+                        if board[CASTLING_RIGHTS_KINGSIDE_WHITE]:
                             if not test:
                                 self.position_hash ^= self.zobrist_castling['K']
-                            board[65] = False
+                            board[CASTLING_RIGHTS_KINGSIDE_WHITE] = False
                 else:
                     if start_index == 0:
-                        if board[68]:
+                        if board[CASTLING_RIGHTS_QUEENSIDE_BLACK]:
                             if not test:
                                 self.position_hash ^= self.zobrist_castling['q']
-                            board[68] = False
+                            board[CASTLING_RIGHTS_QUEENSIDE_BLACK] = False
                     elif start_index == 7:
-                        if board[67]:
+                        if board[CASTLING_RIGHTS_KINGSIDE_BLACK]:
                             if not test:
                                 self.position_hash ^= self.zobrist_castling['k']
-                            board[67] = False
+                            board[CASTLING_RIGHTS_KINGSIDE_BLACK] = False
+            # Handle en passant target square
             if moving_piece.upper() == 'P' and abs(start_index - end_index) == 16:
-                if not test and board[69] != -1:
-                    file = board[69] % 8
+                if not test and board[EN_PASSANT] != -1:
+                    file = board[EN_PASSANT] % 8
                     self.position_hash ^= self.zobrist_en_passant[file]
-                if moving_piece.isupper():
-                    board[69] = start_index - 8
-                else:
-                    board[69] = start_index + 8
+                board[EN_PASSANT] = start_index - 8 if moving_piece.isupper() else start_index + 8
                 if not test:
-                    file = board[69] % 8
+                    file = board[EN_PASSANT] % 8
                     self.position_hash ^= self.zobrist_en_passant[file]
             else:
-                if not test and board[69] != -1:
-                    file = board[69] % 8
+                if not test and board[EN_PASSANT] != -1:
+                    file = board[EN_PASSANT] % 8
                     self.position_hash ^= self.zobrist_en_passant[file]
-                board[69] = -1
+                board[EN_PASSANT] = -1
             if not test:
+                # Update Zobrist hash
                 self.position_hash ^= self.zobrist_piece[moving_piece][start_index]
                 if target_piece != ' ':
                     self.position_hash ^= self.zobrist_piece[target_piece][end_index]
                 self.position_hash ^= self.zobrist_piece[board[end_index]][end_index]
                 if moving_piece.upper() == 'K':
                     if moving_piece.isupper():
-                        if board[65]:
+                        if board[CASTLING_RIGHTS_KINGSIDE_WHITE]:
                             self.position_hash ^= self.zobrist_castling['K']
-                            board[65] = False
-                        if board[66]:
+                            board[CASTLING_RIGHTS_KINGSIDE_WHITE] = False
+                        if board[CASTLING_RIGHTS_QUEENSIDE_WHITE]:
                             self.position_hash ^= self.zobrist_castling['Q']
-                            board[66] = False
+                            board[CASTLING_RIGHTS_QUEENSIDE_WHITE] = False
                     else:
-                        if board[67]:
+                        if board[CASTLING_RIGHTS_KINGSIDE_BLACK]:
                             self.position_hash ^= self.zobrist_castling['k']
-                            board[67] = False
-                        if board[68]:
+                            board[CASTLING_RIGHTS_KINGSIDE_BLACK] = False
+                        if board[CASTLING_RIGHTS_QUEENSIDE_BLACK]:
                             self.position_hash ^= self.zobrist_castling['q']
-                            board[68] = False
+                            board[CASTLING_RIGHTS_QUEENSIDE_BLACK] = False
         if not test:
+            # Update half-move clock
             if moving_piece.upper() == 'P' or target_piece != ' ' or promotion_piece:
-                board[70] = 0  
+                board[HALF_MOVE_CLOCK] = 0  
             else:
-                board[70] += 1  
-        if not test:
-            board[64] = 'b' if board[64] == 'w' else 'w'
+                board[HALF_MOVE_CLOCK] += 1  
+            # Switch player
+            board[PLAYER_TO_MOVE] = 'b' if board[PLAYER_TO_MOVE] == 'w' else 'w'
             self.position_hash ^= self.zobrist_side
+            # Update position hash counts
             count = self.position_hash_counts.get(self.position_hash, 0)
             self.position_hash_counts[self.position_hash] = count + 1
         return board
@@ -393,7 +417,7 @@ class Engine:
 
     def dangerous_squares(self):
         opponent_moves = set()
-        opponent_turn = 'b' if self.white_to_move() else 'w'
+        opponent_turn = 'b' if self.player_to_move() == 'w' else 'w'
         starting_coordinates = [
             i for i, piece in enumerate(self.board[:64])
             if (opponent_turn == 'w' and piece.isupper()) or (opponent_turn == 'b' and piece.islower())
@@ -409,7 +433,8 @@ class Engine:
                         target = y * 8 + x
                         opponent_moves.add(target)
             elif piece.upper() == 'N':
-                knight_moves = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]
+                knight_moves = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), 
+                                (1, -2), (1, 2), (2, -1), (2, 1)]
                 x = start % 8
                 y = start // 8
                 for dx, dy in knight_moves:
@@ -425,7 +450,8 @@ class Engine:
                 elif piece.upper() == 'R':
                     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
                 elif piece.upper() == 'Q':
-                    directions = [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]
+                    directions = [(-1, -1), (-1, 1), (1, -1), (1, 1), 
+                                  (-1, 0), (1, 0), (0, -1), (0, 1)]
                 x = start % 8
                 y = start // 8
                 for dx, dy in directions:
@@ -440,7 +466,8 @@ class Engine:
             elif piece.upper() == 'K':
                 x = start % 8
                 y = start // 8
-                for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1), 
+                               (-1, 0), (1, 0), (0, -1), (0, 1)]:
                     nx, ny = x + dx, y + dy
                     if 0 <= nx < 8 and 0 <= ny < 8:
                         target = ny * 8 + nx
@@ -472,7 +499,7 @@ class Engine:
         return False
 
     def fifty_move_rule(self):
-        return self.board[70] >= 100
+        return self.board[HALF_MOVE_CLOCK] >= 100
 
     def stalemate(self):
         if not self.legal_moves():
